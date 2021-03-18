@@ -33,7 +33,7 @@
   - name: create JAVA_BIN env
     lineinfile:
       path: /etc/profile.d/java.sh
-      regexp: '^export PATH='
+      regexp: '^export PATH=$JAVA_HOME'
       line: 'export PATH=$JAVA_HOME/bin:$PATH'
       state: present
 
