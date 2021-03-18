@@ -1,6 +1,5 @@
 ---
-- name: test playbook
-  hosts: all
+- hosts: all
   become: yes
 
   tasks:
@@ -59,7 +58,12 @@
     when: not i.stat.exists
 
   - name: create index.html with host IP
-    shell: echo "Host IP {{ ansible_eth0.ipv4.address }}" > /usr/share/nginx/html/index.html
+    lineinfile:
+      path: /usr/share/nginx/html/index.html
+      regexp: '^Host IP'
+      line: 'Host IP {{ ansible_eth0.ipv4.address }}'
+      state: present
+      create: yes
     notify:
     - restart nginx
 
