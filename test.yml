@@ -1,0 +1,68 @@
+---
+- name: test playbook
+  hosts: all
+  become: yes
+
+  tasks:
+  - name: remove openjdk
+    package: name=java-* state=absent
+
+  - name: check that directory jdk-11 is exist
+    stat:
+      path: /opt/jdk-11
+    register: j
+
+  - name: install openjdk-11
+    ansible.builtin.unarchive:
+      src: https://download.java.net/openjdk/jdk11/ri/openjdk-11+28_linux-x64_bin.tar.gz
+      dest: /opt/
+      remote_src: yes
+    when: not j.stat.exists
+
+  - name: create JAVA_HOME env
+    lineinfile:
+      path: /etc/profile.d/java.sh
+      regexp: '^export JAVA_HOME='
+      line: 'export JAVA_HOME=/opt/jdk-11'
+      state: present
+      owner: root
+      group: root
+      mode: '0644'
+      create: yes
+
+  - name: create JAVA_BIN env
+    lineinfile:
+      path: /etc/profile.d/java.sh
+      regexp: '^export PATH='
+      line: 'export PATH=$JAVA_HOME/bin:$PATH'
+      state: present
+
+  - name: add nginx-stable repo
+    yum_repository:
+      name: nginx-stable
+      description: nginx-stable repo
+      baseurl: http://nginx.org/packages/centos/$releasever/$basearch/
+      gpgcheck: yes
+      enabled: yes
+      gpgkey: https://nginx.org/keys/nginx_signing.key
+
+  - name: install nginx
+    package: name=nginx state=latest
+
+  - name: check that index.html_orig is exist
+    stat:
+      path: /usr/share/nginx/html/index.html_orig
+    register: i
+
+  - name: if index.html_orig not exist, move original index.html
+    shell: mv /usr/share/nginx/html/index.html /usr/share/nginx/html/index.html_orig
+    when: not i.stat.exists
+
+  - name: create index.html with host IP
+    shell: echo "{{ ansible_eth0.ipv4.address }}" > /usr/share/nginx/html/index.html
+    notify:
+    - restart nginx
+
+  handlers:
+  - name: restart nginx
+    service: name=nginx state=restarted
